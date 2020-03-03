@@ -1,0 +1,38 @@
+{
+  "name": "social-graph-viewer",
+  "version": "1.0.1",
+  "description": "A decentralized git-like version control system that runs on the Arweave blockchain",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "parcel src/index.html",
+    "build": "parcel build src/index.html --public-url ./"
+  },
+  "author": "Gary Gary",
+  "license": "MIT",
+  "dependencies": {
+    "arql-ops": "https://kybjhezuyftg.arweave.net/ITTPLYoxidZzAJP50FQ03QJUSkkh9iKHcmMcLZOvqtQ",
+    "arweave": "^1.6.0",
+    "cytoscape": "^3.14.0",
+    "cytoscape-cola": "^2.3.0",
+    "hyperapp": "^2.0.0-beta.25",
+    "hyperapp-redux-devtools": "^1.1.6",
+    "imports-loader": "^0.8.0"
+  },
+  "babel": {
+    "presets": [
+      "@babel/env"
+    ],
+    "plugins": [
+      [
+        "@babel/transform-react-jsx",
+        {
+          "pragma": "h"
+        }
+      ]
+    ]
+  },
+  "devDependencies": {
+    "@babel/core": "^7.8.4",
+    "parcel-bundler": "^1.12.4"
+  }
+}
