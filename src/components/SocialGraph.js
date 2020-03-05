@@ -19,7 +19,7 @@ export default () => {
         <input
           placeHolder="Enter name or address..."
           id="nameInput"
-          onKeyPress={Find}
+          onInput={Find}
         ></input>
         <hr />
         <button id="goButton" class="round-shadow" onClick={Go}>
@@ -33,9 +33,9 @@ export default () => {
 
 function Find(s, e) {
   let id = e.target.value;
-  if (e.key !== 'Enter') id += e.key;
   if (id !== '' && cy != null) {
-    const cyFilter = `node[label = "${id}"]`;
+    const search = MakeSearchable(id);
+    const cyFilter = `node[labelSearchable = "${search}"],node[addressSearchable = "${search}"]`;
     cy.filter(':selected').unselect();
     cy.filter(cyFilter).select();
     cy.fit(cy.$(':selected'), 200);
@@ -57,10 +57,10 @@ function Go(state, event) {
   arweave
     .arql(query)
     .then(txids => txids.map(txid => arweave.transactions.get(txid)))
-    .then(getTxPromises => Promise.all(getTxPromises))
+    .then(ps => Promise.all(ps))
     .then(txs =>
       txs.map(tx => {
-        // Get Data
+        // Get social graph Data
         var data = tx.get('data', { decode: true, string: true });
         var t = {};
         tx.tags.forEach(tag => {
@@ -85,32 +85,35 @@ function Go(state, event) {
 
       const agentsPromises = [];
       const idQuery = address =>
-        and(equals('from', address), equals('Type', 'name'));
+        and(
+          equals('from', address),
+          equals('App-Name', 'arweave-id'),
+          equals('Type', 'name'),
+        );
       uniqueAddresses.forEach((address, i) => {
         agentsPromises.push(
           arweave
             .arql(idQuery(address))
-            .then(txids => txids.map(txid => arweave.transactions.get(txid)))
-            .then(ps => Promise.all(ps))
-            .then(txs => {
+            .then(txids => {
+              if (txids.length === 0) return null;
+              return arweave.transactions.get(txids[txids.length - 1]);
+            })
+            .then(tx => {
               const agent = {
                 name: address,
                 iconUrl:
                   'https://arweave.net/PylCrHjd8cq1V-qO9vsgKngijvVn7LAVLB6apdz0QK0',
                 address,
               };
-              txs.forEach(tx => {
-                var tags = tx.tags.map(tag => ({
-                  name: tag.get('name', { decode: true, string: true }),
-                  value: tag.get('value', { decode: true, string: true }),
-                }));
-                var typeTag = tags.filter(t => t.name === 'Type');
-                if (typeTag.length > 0) {
-                  const type = typeTag[0].value;
-                  const data = tx.get('data', { decode: true, string: true });
-                  agent[type] = data;
-                }
-              });
+              if (tx == null) return agent;
+              var tags = tx.tags.map(tag => ({
+                name: tag.get('name', { decode: true, string: true }),
+                value: tag.get('value', { decode: true, string: true }),
+              }));
+              var typeTag = tags.filter(t => t.name === 'Type');
+              const type = typeTag[0].value;
+              const data = tx.get('data', { decode: true, string: true });
+              agent[type] = data;
               return agent;
             }),
         );
@@ -118,6 +121,7 @@ function Go(state, event) {
       return agentsPromises;
     })
     .then(aps => Promise.all(aps))
+    .then(agents => agents.filter(a => a != null))
     .then(agents =>
       agents.reduce((a, b) => {
         a[b.address] = b;
@@ -129,7 +133,9 @@ function Go(state, event) {
         elements.push({
           data: {
             id: address,
+            addressSearchable: MakeSearchable(address),
             label: GetName(agents, address),
+            labelSearchable: MakeSearchable(GetName(agents, address)),
             image: agents[address] ? agents[address].iconUrl : null,
             size: 100,
           },
@@ -155,7 +161,7 @@ function Go(state, event) {
             style: {
               'background-image': 'data(image)',
               'background-fit': 'cover',
-              'label': 'data(label)'
+              label: 'data(label)',
             },
           },
 
@@ -221,4 +227,10 @@ function Go(state, event) {
 
 function GetName(agents, address) {
   return agents[address] ? agents[address].name : address;
+}
+
+function MakeSearchable(input) {
+  let output = input.replace(/ /g, '');
+  output = output.toLowerCase();
+  return output;
 }
